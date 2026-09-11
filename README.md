@@ -15,4 +15,4 @@ To survive, you must maneuver around the chamber to collect floating **Coolant N
 
 ## Control Scheme
 * **Mouse Movement:** Move the cursor inside the canvas frame to steer your ship.
-* **Auto-Fire:** Coolant projectiles automatically launch toward the core upon node collection.
+* **Auto-Fire:** Coolant projectiles automatically launch toward the core upon node collection. 
