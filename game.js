@@ -22,9 +22,9 @@ const finalTime = document.getElementById("finalTime");
 
 const GAME_LENGTH = 60;
 
-const CORE_GROWTH_RATE = 17.5;
-
-const COOLANT_SHRINK = 13;
+// Harder base difficulty
+const CORE_GROWTH_RATE = 24;
+const COOLANT_SHRINK = 9;
 
 const colors = {
     void: "#070913",
@@ -40,7 +40,6 @@ const colors = {
 // --------------------------------------------------
 
 let lastTime = 0;
-
 let timeSurvived = 0;
 
 let gameState = "START";
@@ -48,8 +47,7 @@ let gameState = "START";
 let animationID = null;
 
 let nodeSpawnTimer = 0;
-
-let nextNodeSpawn = 1.3;
+let nextNodeSpawn = 2;
 
 
 // --------------------------------------------------
@@ -65,14 +63,11 @@ const player = {
 const star = {
     x: 400,
     y: 400,
-
     baseRadius: 20,
-
     currentRadius: 20
 };
 
 let nodes = [];
-
 let projectiles = [];
 
 
@@ -94,6 +89,7 @@ canvas.addEventListener("mousemove", function (e) {
     player.x = (e.clientX - rect.left) * scaleX;
     player.y = (e.clientY - rect.top) * scaleY;
 
+    // Keep player inside arena
     player.x = Math.max(
         player.radius,
         Math.min(canvas.width - player.radius, player.x)
@@ -120,7 +116,7 @@ replayButton.addEventListener("click", function () {
 
 
 // --------------------------------------------------
-// START / RESET
+// START / RESET GAME
 // --------------------------------------------------
 
 function startGame() {
@@ -130,13 +126,11 @@ function startGame() {
     }
 
     timeSurvived = 0;
-
     lastTime = 0;
 
     gameState = "PLAYING";
 
     nodeSpawnTimer = 0;
-
     nextNodeSpawn = randomSpawnDelay();
 
     player.x = 400;
@@ -145,11 +139,9 @@ function startGame() {
     star.currentRadius = star.baseRadius;
 
     nodes = [];
-
     projectiles = [];
 
     timerDisplay.innerText = "0.00";
-
     remainingDisplay.innerText = "60.00";
 
     statusMsg.innerText =
@@ -158,10 +150,9 @@ function startGame() {
     statusMsg.style.color = colors.warning;
 
     startScreen.classList.add("hidden");
-
     endScreen.classList.add("hidden");
 
-    spawnNode();
+    // Only two starting nodes
     spawnNode();
     spawnNode();
 
@@ -181,6 +172,7 @@ function gameLoop(timestamp) {
 
     let deltaTime = (timestamp - lastTime) / 1000;
 
+    // Prevent huge jumps if browser lags or tab changes
     deltaTime = Math.min(deltaTime, 0.05);
 
     lastTime = timestamp;
@@ -188,7 +180,6 @@ function gameLoop(timestamp) {
     if (gameState === "PLAYING") {
 
         update(deltaTime);
-
         draw();
 
         animationID = requestAnimationFrame(gameLoop);
@@ -224,7 +215,9 @@ function update(deltaTime) {
         ).toFixed(2);
 
 
+    // --------------------------------------------------
     // WIN CONDITION
+    // --------------------------------------------------
 
     if (timeSurvived >= GAME_LENGTH) {
 
@@ -234,13 +227,17 @@ function update(deltaTime) {
     }
 
 
+    // --------------------------------------------------
     // CORE GROWTH
+    // --------------------------------------------------
 
     star.currentRadius +=
         CORE_GROWTH_RATE * deltaTime;
 
 
+    // --------------------------------------------------
     // NODE SPAWNING
+    // --------------------------------------------------
 
     nodeSpawnTimer += deltaTime;
 
@@ -248,20 +245,15 @@ function update(deltaTime) {
 
         spawnNode();
 
-        if (
-            timeSurvived > 25 &&
-            Math.random() < 0.22
-        ) {
-            spawnNode();
-        }
-
         nodeSpawnTimer = 0;
 
         nextNodeSpawn = randomSpawnDelay();
     }
 
 
-    // PLAYER VS NODES
+    // --------------------------------------------------
+    // PLAYER VS COOLANT NODES
+    // --------------------------------------------------
 
     for (
         let i = nodes.length - 1;
@@ -293,7 +285,9 @@ function update(deltaTime) {
     }
 
 
-    // PROJECTILES
+    // --------------------------------------------------
+    // COOLANT PROJECTILES
+    // --------------------------------------------------
 
     for (
         let i = projectiles.length - 1;
@@ -338,7 +332,9 @@ function update(deltaTime) {
     }
 
 
+    // --------------------------------------------------
     // PLAYER VS BLOOM
+    // --------------------------------------------------
 
     const distanceToPlayer = Math.hypot(
         star.x - player.x,
@@ -358,17 +354,19 @@ function update(deltaTime) {
 
 
 // --------------------------------------------------
-// SPAWN TIMING
+// RANDOM SPAWN TIMING
 // --------------------------------------------------
 
 function randomSpawnDelay() {
 
-    return 1.0 + Math.random() * 0.7;
+    // Coolant now appears every 1.8 - 3.0 seconds
+
+    return 1.8 + Math.random() * 1.2;
 }
 
 
 // --------------------------------------------------
-// SPAWN NODE
+// SPAWN COOLANT NODE
 // --------------------------------------------------
 
 function spawnNode() {
@@ -377,6 +375,7 @@ function spawnNode() {
 
     const margin = 30;
 
+    // Keep new nodes outside the Bloom
     const safeDistance =
         star.currentRadius + 55;
 
@@ -494,7 +493,9 @@ function draw() {
     );
 
 
+    // --------------------------------------------------
     // BACKGROUND
+    // --------------------------------------------------
 
     ctx.fillStyle = colors.void;
 
@@ -506,7 +507,9 @@ function draw() {
     );
 
 
-    // BLOOM
+    // --------------------------------------------------
+    // CENTRAL BLOOM
+    // --------------------------------------------------
 
     ctx.save();
 
@@ -523,7 +526,6 @@ function draw() {
     ctx.fillStyle = colors.coreRed;
 
     ctx.shadowBlur = 40;
-
     ctx.shadowColor = colors.coreRed;
 
     ctx.fill();
@@ -531,7 +533,9 @@ function draw() {
     ctx.restore();
 
 
-    // COLLISION BORDER
+    // --------------------------------------------------
+    // COLLISION BOUNDARY
+    // --------------------------------------------------
 
     ctx.beginPath();
 
@@ -544,13 +548,14 @@ function draw() {
     );
 
     ctx.strokeStyle = colors.warning;
-
     ctx.lineWidth = 2;
 
     ctx.stroke();
 
 
-    // NODES
+    // --------------------------------------------------
+    // COOLANT NODES
+    // --------------------------------------------------
 
     for (
         let i = 0;
@@ -580,7 +585,6 @@ function draw() {
         ctx.fillStyle = colors.node;
 
         ctx.shadowBlur = 12;
-
         ctx.shadowColor = colors.node;
 
         ctx.fill();
@@ -589,7 +593,9 @@ function draw() {
     }
 
 
-    // PROJECTILES
+    // --------------------------------------------------
+    // COOLANT PROJECTILES
+    // --------------------------------------------------
 
     for (
         let i = 0;
@@ -617,7 +623,9 @@ function draw() {
     }
 
 
+    // --------------------------------------------------
     // PLAYER
+    // --------------------------------------------------
 
     ctx.save();
 
@@ -634,7 +642,6 @@ function draw() {
     ctx.fillStyle = "white";
 
     ctx.shadowBlur = 8;
-
     ctx.shadowColor = "white";
 
     ctx.fill();
