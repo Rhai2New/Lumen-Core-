@@ -36,27 +36,20 @@ body {
 
 #ui {
     width: 100%;
-
     text-align: center;
-
     margin-bottom: 8px;
 }
 
 #ui h2 {
     margin: 0 0 5px 0;
-
     letter-spacing: 4px;
-
     color: #f43f5e;
 }
 
 #timeRow {
     display: flex;
-
     justify-content: center;
-
     gap: 35px;
-
     flex-wrap: wrap;
 }
 
@@ -66,7 +59,6 @@ body {
 
 #statusMsg {
     color: #facc15;
-
     margin: 6px 0;
 }
 
@@ -120,17 +112,13 @@ body {
 
 .overlay h1 {
     color: #f43f5e;
-
     letter-spacing: 4px;
-
     margin-bottom: 20px;
 }
 
 .overlay p {
     max-width: 550px;
-
     line-height: 1.4;
-
     margin: 7px 0;
 }
 
@@ -148,9 +136,7 @@ button {
     font-family: "Courier New", Courier, monospace;
 
     font-size: 16px;
-
     font-weight: bold;
-
     letter-spacing: 2px;
 
     cursor: pointer;
