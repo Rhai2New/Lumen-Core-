@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,42 +33,22 @@
 
         <div id="canvasContainer">
 
-            <canvas
-                id="gameCanvas"
-                width="800"
-                height="800">
-            </canvas>
+            <canvas id="gameCanvas" width="800" height="800"></canvas>
 
-            <!-- Start Screen -->
             <div id="startScreen" class="overlay">
                 <h1>LUMEN CORE</h1>
 
-                <p>
-                    The containment Core is blooming out of control.
-                </p>
-
-                <p>
-                    Move your mouse to control your ship.
-                </p>
-
-                <p>
-                    Collect cyan coolant nodes to shrink the Core.
-                </p>
-
-                <p>
-                    Do not touch the red Bloom.
-                </p>
-
-                <p>
-                    Survive for 60 seconds.
-                </p>
+                <p>The containment Core is blooming out of control.</p>
+                <p>Move your mouse to control your ship.</p>
+                <p>Collect cyan coolant nodes to shrink the Core.</p>
+                <p>Do not touch the red Bloom.</p>
+                <p>Survive for 60 seconds.</p>
 
                 <button id="startButton">
                     BEGIN CONTAINMENT
                 </button>
             </div>
 
-            <!-- Ending Screen -->
             <div id="endScreen" class="overlay hidden">
                 <h1 id="endTitle">CONTAINMENT FAILURE</h1>
 
@@ -92,5 +71,4 @@
     <script src="game.js"></script>
 
 </body>
-
 </html>
