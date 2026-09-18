@@ -22,6 +22,10 @@ const finalTime = document.getElementById("finalTime");
 
 const GAME_LENGTH = 60;
 
+const CORE_GROWTH_RATE = 17.5;
+
+const COOLANT_SHRINK = 13;
+
 const colors = {
     void: "#070913",
     edge: "#1e293b",
@@ -90,9 +94,6 @@ canvas.addEventListener("mousemove", function (e) {
     player.x = (e.clientX - rect.left) * scaleX;
     player.y = (e.clientY - rect.top) * scaleY;
 
-
-    // Keep the player inside the arena
-
     player.x = Math.max(
         player.radius,
         Math.min(canvas.width - player.radius, player.x)
@@ -110,21 +111,16 @@ canvas.addEventListener("mousemove", function (e) {
 // --------------------------------------------------
 
 startButton.addEventListener("click", function () {
-
     startGame();
-
 });
 
-
 replayButton.addEventListener("click", function () {
-
     startGame();
-
 });
 
 
 // --------------------------------------------------
-// START / RESET GAME
+// START / RESET
 // --------------------------------------------------
 
 function startGame() {
@@ -143,48 +139,38 @@ function startGame() {
 
     nextNodeSpawn = randomSpawnDelay();
 
-
     player.x = 400;
     player.y = 700;
 
-
     star.currentRadius = star.baseRadius;
-
 
     nodes = [];
 
     projectiles = [];
 
-
     timerDisplay.innerText = "0.00";
 
     remainingDisplay.innerText = "60.00";
-
 
     statusMsg.innerText =
         "Collect coolant nodes. Avoid the Core.";
 
     statusMsg.style.color = colors.warning;
 
-
     startScreen.classList.add("hidden");
 
     endScreen.classList.add("hidden");
 
-
-    // Spawn a few starting nodes
-
     spawnNode();
     spawnNode();
     spawnNode();
-
 
     animationID = requestAnimationFrame(gameLoop);
 }
 
 
 // --------------------------------------------------
-// MAIN GAME LOOP
+// GAME LOOP
 // --------------------------------------------------
 
 function gameLoop(timestamp) {
@@ -193,17 +179,11 @@ function gameLoop(timestamp) {
         lastTime = timestamp;
     }
 
-
     let deltaTime = (timestamp - lastTime) / 1000;
-
-
-    // Prevent giant update jumps from lag or tab switching
 
     deltaTime = Math.min(deltaTime, 0.05);
 
-
     lastTime = timestamp;
-
 
     if (gameState === "PLAYING") {
 
@@ -218,7 +198,6 @@ function gameLoop(timestamp) {
         draw();
 
         animationID = null;
-
     }
 }
 
@@ -231,15 +210,12 @@ function update(deltaTime) {
 
     timeSurvived += deltaTime;
 
-
     if (timeSurvived > GAME_LENGTH) {
         timeSurvived = GAME_LENGTH;
     }
 
-
     timerDisplay.innerText =
         timeSurvived.toFixed(2);
-
 
     remainingDisplay.innerText =
         Math.max(
@@ -248,9 +224,7 @@ function update(deltaTime) {
         ).toFixed(2);
 
 
-    // ----------------------------------------------
     // WIN CONDITION
-    // ----------------------------------------------
 
     if (timeSurvived >= GAME_LENGTH) {
 
@@ -260,40 +234,26 @@ function update(deltaTime) {
     }
 
 
-    // ----------------------------------------------
-    // BLOOM GROWTH
-    // ----------------------------------------------
-
-    let growthRate = getGrowthRate();
+    // CORE GROWTH
 
     star.currentRadius +=
-        growthRate * deltaTime;
+        CORE_GROWTH_RATE * deltaTime;
 
 
-    // ----------------------------------------------
     // NODE SPAWNING
-    // ----------------------------------------------
 
     nodeSpawnTimer += deltaTime;
-
 
     if (nodeSpawnTimer >= nextNodeSpawn) {
 
         spawnNode();
 
-
-        // Occasionally spawn an extra node later
-        // in the round to vary each run.
-
         if (
             timeSurvived > 25 &&
             Math.random() < 0.22
         ) {
-
             spawnNode();
-
         }
-
 
         nodeSpawnTimer = 0;
 
@@ -301,9 +261,7 @@ function update(deltaTime) {
     }
 
 
-    // ----------------------------------------------
-    // PLAYER VS COOLANT NODES
-    // ----------------------------------------------
+    // PLAYER VS NODES
 
     for (
         let i = nodes.length - 1;
@@ -313,12 +271,10 @@ function update(deltaTime) {
 
         const node = nodes[i];
 
-
         const distance = Math.hypot(
             player.x - node.x,
             player.y - node.y
         );
-
 
         if (
             distance <
@@ -326,25 +282,18 @@ function update(deltaTime) {
         ) {
 
             projectiles.push({
-
                 x: player.x,
-
                 y: player.y,
-
                 radius: 4,
-
                 speed: 430
             });
-
 
             nodes.splice(i, 1);
         }
     }
 
 
-    // ----------------------------------------------
-    // COOLANT PROJECTILES
-    // ----------------------------------------------
+    // PROJECTILES
 
     for (
         let i = projectiles.length - 1;
@@ -354,30 +303,25 @@ function update(deltaTime) {
 
         const projectile = projectiles[i];
 
-
         const angle = Math.atan2(
             star.y - projectile.y,
             star.x - projectile.x
         );
-
 
         projectile.x +=
             Math.cos(angle) *
             projectile.speed *
             deltaTime;
 
-
         projectile.y +=
             Math.sin(angle) *
             projectile.speed *
             deltaTime;
 
-
         const distanceToCore = Math.hypot(
             star.x - projectile.x,
             star.y - projectile.y
         );
-
 
         if (
             distanceToCore <
@@ -386,24 +330,20 @@ function update(deltaTime) {
 
             star.currentRadius = Math.max(
                 star.baseRadius,
-                star.currentRadius - 15
+                star.currentRadius - COOLANT_SHRINK
             );
-
 
             projectiles.splice(i, 1);
         }
     }
 
 
-    // ----------------------------------------------
     // PLAYER VS BLOOM
-    // ----------------------------------------------
 
     const distanceToPlayer = Math.hypot(
         star.x - player.x,
         star.y - player.y
     );
-
 
     if (
         distanceToPlayer <=
@@ -418,35 +358,7 @@ function update(deltaTime) {
 
 
 // --------------------------------------------------
-// DIFFICULTY CURVE
-// --------------------------------------------------
-
-function getGrowthRate() {
-
-    if (timeSurvived < 20) {
-
-        return 11;
-
-    }
-
-    if (timeSurvived < 40) {
-
-        return 14;
-
-    }
-
-    if (timeSurvived < 55) {
-
-        return 17;
-
-    }
-
-    return 20;
-}
-
-
-// --------------------------------------------------
-// RANDOM NODE SPAWN DELAY
+// SPAWN TIMING
 // --------------------------------------------------
 
 function randomSpawnDelay() {
@@ -456,7 +368,7 @@ function randomSpawnDelay() {
 
 
 // --------------------------------------------------
-// SPAWN COOLANT NODE
+// SPAWN NODE
 // --------------------------------------------------
 
 function spawnNode() {
@@ -468,22 +380,21 @@ function spawnNode() {
     const safeDistance =
         star.currentRadius + 55;
 
-
-    // Try multiple random positions
-
-    for (let attempt = 0; attempt < 30; attempt++) {
+    for (
+        let attempt = 0;
+        attempt < 30;
+        attempt++
+    ) {
 
         const x =
             margin +
             Math.random() *
             (canvas.width - margin * 2);
 
-
         const y =
             margin +
             Math.random() *
             (canvas.height - margin * 2);
-
 
         const distanceFromCore =
             Math.hypot(
@@ -491,20 +402,15 @@ function spawnNode() {
                 star.y - y
             );
 
-
         if (
             distanceFromCore >
             safeDistance
         ) {
 
             nodes.push({
-
                 x: x,
-
                 y: y,
-
                 radius: nodeRadius,
-
                 pulse: Math.random() * Math.PI * 2
             });
 
@@ -522,29 +428,23 @@ function winGame() {
 
     gameState = "WIN";
 
-
     statusMsg.innerText =
         "CONTAINMENT SUCCESSFUL";
 
     statusMsg.style.color =
         colors.node;
 
-
     finalTime.innerText =
         "60.00";
-
 
     endTitle.innerText =
         "CONTAINMENT SUCCESSFUL";
 
-
     endTitle.style.color =
         colors.node;
 
-
     endMessage.innerText =
         "You survived the full Bloom cycle.";
-
 
     endScreen.classList.remove("hidden");
 }
@@ -558,29 +458,23 @@ function loseGame() {
 
     gameState = "LOSE";
 
-
     statusMsg.innerText =
         "CRITICAL FAILURE";
 
     statusMsg.style.color =
         colors.coreRed;
 
-
     finalTime.innerText =
         timeSurvived.toFixed(2);
-
 
     endTitle.innerText =
         "CONTAINMENT FAILURE";
 
-
     endTitle.style.color =
         colors.coreRed;
 
-
     endMessage.innerText =
         "The Bloom reached your ship.";
-
 
     endScreen.classList.remove("hidden");
 }
@@ -600,9 +494,7 @@ function draw() {
     );
 
 
-    // ----------------------------------------------
     // BACKGROUND
-    // ----------------------------------------------
 
     ctx.fillStyle = colors.void;
 
@@ -614,12 +506,9 @@ function draw() {
     );
 
 
-    // ----------------------------------------------
-    // CENTRAL CORE BLOOM
-    // ----------------------------------------------
+    // BLOOM
 
     ctx.save();
-
 
     ctx.beginPath();
 
@@ -631,24 +520,18 @@ function draw() {
         Math.PI * 2
     );
 
-
     ctx.fillStyle = colors.coreRed;
-
 
     ctx.shadowBlur = 40;
 
     ctx.shadowColor = colors.coreRed;
 
-
     ctx.fill();
-
 
     ctx.restore();
 
 
-    // ----------------------------------------------
-    // EXACT COLLISION BORDER
-    // ----------------------------------------------
+    // COLLISION BORDER
 
     ctx.beginPath();
 
@@ -659,7 +542,6 @@ function draw() {
         0,
         Math.PI * 2
     );
-
 
     ctx.strokeStyle = colors.warning;
 
@@ -668,27 +550,24 @@ function draw() {
     ctx.stroke();
 
 
-    // ----------------------------------------------
-    // COOLANT NODES
-    // ----------------------------------------------
+    // NODES
 
-    for (let i = 0; i < nodes.length; i++) {
+    for (
+        let i = 0;
+        i < nodes.length;
+        i++
+    ) {
 
         const node = nodes[i];
 
-
         node.pulse += 0.05;
-
 
         const pulseSize =
             Math.sin(node.pulse) * 1.5;
 
-
         ctx.save();
 
-
         ctx.beginPath();
-
 
         ctx.arc(
             node.x,
@@ -698,25 +577,19 @@ function draw() {
             Math.PI * 2
         );
 
-
         ctx.fillStyle = colors.node;
-
 
         ctx.shadowBlur = 12;
 
         ctx.shadowColor = colors.node;
 
-
         ctx.fill();
-
 
         ctx.restore();
     }
 
 
-    // ----------------------------------------------
-    // COOLANT PROJECTILES
-    // ----------------------------------------------
+    // PROJECTILES
 
     for (
         let i = 0;
@@ -727,9 +600,7 @@ function draw() {
         const projectile =
             projectiles[i];
 
-
         ctx.beginPath();
-
 
         ctx.arc(
             projectile.x,
@@ -739,24 +610,18 @@ function draw() {
             Math.PI * 2
         );
 
-
         ctx.fillStyle =
             colors.warning;
-
 
         ctx.fill();
     }
 
 
-    // ----------------------------------------------
     // PLAYER
-    // ----------------------------------------------
 
     ctx.save();
 
-
     ctx.beginPath();
-
 
     ctx.arc(
         player.x,
@@ -766,17 +631,13 @@ function draw() {
         Math.PI * 2
     );
 
-
     ctx.fillStyle = "white";
-
 
     ctx.shadowBlur = 8;
 
     ctx.shadowColor = "white";
 
-
     ctx.fill();
-
 
     ctx.restore();
 }
