@@ -22,7 +22,6 @@ const finalTime = document.getElementById("finalTime");
 
 const GAME_LENGTH = 60;
 
-// Harder base difficulty
 const CORE_GROWTH_RATE = 20;
 const COOLANT_SHRINK = 10;
 
@@ -47,7 +46,7 @@ let gameState = "START";
 let animationID = null;
 
 let nodeSpawnTimer = 0;
-let nextNodeSpawn = 2;
+let nextNodeSpawn = 1;
 
 
 // --------------------------------------------------
@@ -89,7 +88,6 @@ canvas.addEventListener("mousemove", function (e) {
     player.x = (e.clientX - rect.left) * scaleX;
     player.y = (e.clientY - rect.top) * scaleY;
 
-    // Keep player inside arena
     player.x = Math.max(
         player.radius,
         Math.min(canvas.width - player.radius, player.x)
@@ -116,7 +114,7 @@ replayButton.addEventListener("click", function () {
 
 
 // --------------------------------------------------
-// START / RESET GAME
+// START / RESET
 // --------------------------------------------------
 
 function startGame() {
@@ -152,9 +150,13 @@ function startGame() {
     startScreen.classList.add("hidden");
     endScreen.classList.add("hidden");
 
-    // Only two starting nodes
+
+    // Start with four coolant nodes
     spawnNode();
     spawnNode();
+    spawnNode();
+    spawnNode();
+
 
     animationID = requestAnimationFrame(gameLoop);
 }
@@ -172,7 +174,7 @@ function gameLoop(timestamp) {
 
     let deltaTime = (timestamp - lastTime) / 1000;
 
-    // Prevent huge jumps if browser lags or tab changes
+    // Prevent giant jumps from lag or switching tabs
     deltaTime = Math.min(deltaTime, 0.05);
 
     lastTime = timestamp;
@@ -187,7 +189,6 @@ function gameLoop(timestamp) {
     } else {
 
         draw();
-
         animationID = null;
     }
 }
@@ -236,7 +237,7 @@ function update(deltaTime) {
 
 
     // --------------------------------------------------
-    // NODE SPAWNING
+    // COOLANT SPAWNING
     // --------------------------------------------------
 
     nodeSpawnTimer += deltaTime;
@@ -255,11 +256,7 @@ function update(deltaTime) {
     // PLAYER VS COOLANT NODES
     // --------------------------------------------------
 
-    for (
-        let i = nodes.length - 1;
-        i >= 0;
-        i--
-    ) {
+    for (let i = nodes.length - 1; i >= 0; i--) {
 
         const node = nodes[i];
 
@@ -289,11 +286,7 @@ function update(deltaTime) {
     // COOLANT PROJECTILES
     // --------------------------------------------------
 
-    for (
-        let i = projectiles.length - 1;
-        i >= 0;
-        i--
-    ) {
+    for (let i = projectiles.length - 1; i >= 0; i--) {
 
         const projectile = projectiles[i];
 
@@ -354,14 +347,14 @@ function update(deltaTime) {
 
 
 // --------------------------------------------------
-// RANDOM SPAWN TIMING
+// RANDOM COOLANT SPAWN DELAY
 // --------------------------------------------------
 
 function randomSpawnDelay() {
 
-    // Coolant now appears every 1.8 - 3.0 seconds
+    // Coolant appears every 0.8 - 1.5 seconds
 
-    return 1.3 + Math.random() * 1.2;
+    return 0.8 + Math.random() * 0.7;
 }
 
 
@@ -372,18 +365,13 @@ function randomSpawnDelay() {
 function spawnNode() {
 
     const nodeRadius = 8;
-
     const margin = 30;
 
-    // Keep new nodes outside the Bloom
     const safeDistance =
         star.currentRadius + 55;
 
-    for (
-        let attempt = 0;
-        attempt < 30;
-        attempt++
-    ) {
+
+    for (let attempt = 0; attempt < 40; attempt++) {
 
         const x =
             margin +
@@ -493,9 +481,7 @@ function draw() {
     );
 
 
-    // --------------------------------------------------
     // BACKGROUND
-    // --------------------------------------------------
 
     ctx.fillStyle = colors.void;
 
@@ -508,7 +494,7 @@ function draw() {
 
 
     // --------------------------------------------------
-    // CENTRAL BLOOM
+    // BLOOM
     // --------------------------------------------------
 
     ctx.save();
@@ -557,11 +543,7 @@ function draw() {
     // COOLANT NODES
     // --------------------------------------------------
 
-    for (
-        let i = 0;
-        i < nodes.length;
-        i++
-    ) {
+    for (let i = 0; i < nodes.length; i++) {
 
         const node = nodes[i];
 
@@ -597,11 +579,7 @@ function draw() {
     // COOLANT PROJECTILES
     // --------------------------------------------------
 
-    for (
-        let i = 0;
-        i < projectiles.length;
-        i++
-    ) {
+    for (let i = 0; i < projectiles.length; i++) {
 
         const projectile =
             projectiles[i];
