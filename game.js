@@ -1,162 +1,789 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const timerDisplay = document.getElementById('timerDisplay');
-const statusMsg = document.getElementById('statusMsg');
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-// Game State Variables
-let lastTime = 0;
-let timeSurvived = 0;
-let gameState = 'PLAYING'; // PLAYING, WIN, LOSE
+const timerDisplay = document.getElementById("timerDisplay");
+const remainingDisplay = document.getElementById("remainingDisplay");
+const statusMsg = document.getElementById("statusMsg");
 
-// Art Direction Hex Values
+const startScreen = document.getElementById("startScreen");
+const endScreen = document.getElementById("endScreen");
+
+const startButton = document.getElementById("startButton");
+const replayButton = document.getElementById("replayButton");
+
+const endTitle = document.getElementById("endTitle");
+const endMessage = document.getElementById("endMessage");
+const finalTime = document.getElementById("finalTime");
+
+
+// --------------------------------------------------
+// GAME CONSTANTS
+// --------------------------------------------------
+
+const GAME_LENGTH = 60;
+
 const colors = {
-    void: '#070913',
-    edge: '#1e293b',
-    node: '#06b6d4',
-    warning: '#facc15',
-    coreRed: '#f43f5e'
+    void: "#070913",
+    edge: "#1e293b",
+    node: "#06b6d4",
+    warning: "#facc15",
+    coreRed: "#f43f5e"
 };
 
-// Entities
-const player = { x: 400, y: 700, radius: 8 };
-const star = { x: 400, y: 400, baseRadius: 20, currentRadius: 20, growthRate: 15 }; // pixels per second
-let nodes = [];
-let projectiles = [];
+
+// --------------------------------------------------
+// GAME STATE
+// --------------------------------------------------
+
+let lastTime = 0;
+
+let timeSurvived = 0;
+
+let gameState = "START";
+
+let animationID = null;
 
 let nodeSpawnTimer = 0;
 
-// Input Mapping
-canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    player.x = e.clientX - rect.left;
-    player.y = e.clientY - rect.top;
-});
+let nextNodeSpawn = 1.3;
 
-// Core Game Loop Architecture
-function gameLoop(timestamp) {
-    if (!lastTime) lastTime = timestamp;
-    const deltaTime = (timestamp - lastTime) / 1000; // Convert to seconds
-    lastTime = timestamp;
 
-    if (gameState === 'PLAYING') {
-        update(deltaTime);
-    }
-    draw();
+// --------------------------------------------------
+// ENTITIES
+// --------------------------------------------------
 
-    if (gameState === 'PLAYING') {
-        requestAnimationFrame(gameLoop);
-    }
-}
+const player = {
+    x: 400,
+    y: 700,
+    radius: 8
+};
 
-// Mechanics & Systems Design (Updates)
-function update(deltaTime) {
-    timeSurvived += deltaTime;
-    timerDisplay.innerText = timeSurvived.toFixed(2);
+const star = {
+    x: 400,
+    y: 400,
 
-    // 1. Win Condition
-    if (timeSurvived >= 60) {
-        gameState = 'WIN';
-        statusMsg.innerText = "CONTAINMENT SUCCESSFUL. You survived 60 seconds.";
-        statusMsg.style.color = colors.node;
+    baseRadius: 20,
+
+    currentRadius: 20
+};
+
+let nodes = [];
+
+let projectiles = [];
+
+
+// --------------------------------------------------
+// INPUT
+// --------------------------------------------------
+
+canvas.addEventListener("mousemove", function (e) {
+
+    if (gameState !== "PLAYING") {
         return;
     }
 
-    // 2. Star Growth (The Bloom Hazard)
-    star.currentRadius += star.growthRate * deltaTime;
+    const rect = canvas.getBoundingClientRect();
 
-    // 3. Node Spawning
-    nodeSpawnTimer += deltaTime;
-    if (nodeSpawnTimer > 1.5) { // Spawn a node every 1.5 seconds
-        spawnNode();
-        nodeSpawnTimer = 0;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    player.x = (e.clientX - rect.left) * scaleX;
+    player.y = (e.clientY - rect.top) * scaleY;
+
+
+    // Keep the player inside the arena
+
+    player.x = Math.max(
+        player.radius,
+        Math.min(canvas.width - player.radius, player.x)
+    );
+
+    player.y = Math.max(
+        player.radius,
+        Math.min(canvas.height - player.radius, player.y)
+    );
+});
+
+
+// --------------------------------------------------
+// BUTTONS
+// --------------------------------------------------
+
+startButton.addEventListener("click", function () {
+
+    startGame();
+
+});
+
+
+replayButton.addEventListener("click", function () {
+
+    startGame();
+
+});
+
+
+// --------------------------------------------------
+// START / RESET GAME
+// --------------------------------------------------
+
+function startGame() {
+
+    if (animationID !== null) {
+        cancelAnimationFrame(animationID);
     }
 
-    // 4. Collision Detection: Player vs Nodes
-    for (let i = nodes.length - 1; i >= 0; i--) {
-        let n = nodes[i];
-        let dist = Math.hypot(player.x - n.x, player.y - n.y);
-        if (dist < player.radius + n.radius) {
-            // Collect node -> convert to projectile
-            projectiles.push({ x: player.x, y: player.y, radius: 4, speed: 400 });
+    timeSurvived = 0;
+
+    lastTime = 0;
+
+    gameState = "PLAYING";
+
+    nodeSpawnTimer = 0;
+
+    nextNodeSpawn = randomSpawnDelay();
+
+
+    player.x = 400;
+    player.y = 700;
+
+
+    star.currentRadius = star.baseRadius;
+
+
+    nodes = [];
+
+    projectiles = [];
+
+
+    timerDisplay.innerText = "0.00";
+
+    remainingDisplay.innerText = "60.00";
+
+
+    statusMsg.innerText =
+        "Collect coolant nodes. Avoid the Core.";
+
+    statusMsg.style.color = colors.warning;
+
+
+    startScreen.classList.add("hidden");
+
+    endScreen.classList.add("hidden");
+
+
+    // Spawn a few starting nodes
+
+    spawnNode();
+    spawnNode();
+    spawnNode();
+
+
+    animationID = requestAnimationFrame(gameLoop);
+}
+
+
+// --------------------------------------------------
+// MAIN GAME LOOP
+// --------------------------------------------------
+
+function gameLoop(timestamp) {
+
+    if (!lastTime) {
+        lastTime = timestamp;
+    }
+
+
+    let deltaTime = (timestamp - lastTime) / 1000;
+
+
+    // Prevent giant update jumps from lag or tab switching
+
+    deltaTime = Math.min(deltaTime, 0.05);
+
+
+    lastTime = timestamp;
+
+
+    if (gameState === "PLAYING") {
+
+        update(deltaTime);
+
+        draw();
+
+        animationID = requestAnimationFrame(gameLoop);
+
+    } else {
+
+        draw();
+
+        animationID = null;
+
+    }
+}
+
+
+// --------------------------------------------------
+// UPDATE
+// --------------------------------------------------
+
+function update(deltaTime) {
+
+    timeSurvived += deltaTime;
+
+
+    if (timeSurvived > GAME_LENGTH) {
+        timeSurvived = GAME_LENGTH;
+    }
+
+
+    timerDisplay.innerText =
+        timeSurvived.toFixed(2);
+
+
+    remainingDisplay.innerText =
+        Math.max(
+            0,
+            GAME_LENGTH - timeSurvived
+        ).toFixed(2);
+
+
+    // ----------------------------------------------
+    // WIN CONDITION
+    // ----------------------------------------------
+
+    if (timeSurvived >= GAME_LENGTH) {
+
+        winGame();
+
+        return;
+    }
+
+
+    // ----------------------------------------------
+    // BLOOM GROWTH
+    // ----------------------------------------------
+
+    let growthRate = getGrowthRate();
+
+    star.currentRadius +=
+        growthRate * deltaTime;
+
+
+    // ----------------------------------------------
+    // NODE SPAWNING
+    // ----------------------------------------------
+
+    nodeSpawnTimer += deltaTime;
+
+
+    if (nodeSpawnTimer >= nextNodeSpawn) {
+
+        spawnNode();
+
+
+        // Occasionally spawn an extra node later
+        // in the round to vary each run.
+
+        if (
+            timeSurvived > 25 &&
+            Math.random() < 0.22
+        ) {
+
+            spawnNode();
+
+        }
+
+
+        nodeSpawnTimer = 0;
+
+        nextNodeSpawn = randomSpawnDelay();
+    }
+
+
+    // ----------------------------------------------
+    // PLAYER VS COOLANT NODES
+    // ----------------------------------------------
+
+    for (
+        let i = nodes.length - 1;
+        i >= 0;
+        i--
+    ) {
+
+        const node = nodes[i];
+
+
+        const distance = Math.hypot(
+            player.x - node.x,
+            player.y - node.y
+        );
+
+
+        if (
+            distance <
+            player.radius + node.radius
+        ) {
+
+            projectiles.push({
+
+                x: player.x,
+
+                y: player.y,
+
+                radius: 4,
+
+                speed: 430
+            });
+
+
             nodes.splice(i, 1);
         }
     }
 
-    // 5. Projectiles moving to center (Auto-fire mechanic)
-    for (let i = projectiles.length - 1; i >= 0; i--) {
-        let p = projectiles[i];
-        // Move towards star center
-        let angle = Math.atan2(star.y - p.y, star.x - p.x);
-        p.x += Math.cos(angle) * p.speed * deltaTime;
-        p.y += Math.sin(angle) * p.speed * deltaTime;
 
-        // Hit central star
-        let distToStar = Math.hypot(star.x - p.x, star.y - p.y);
-        if (distToStar < star.currentRadius) {
-            star.currentRadius = Math.max(star.baseRadius, star.currentRadius - 12); // Shrink star
+    // ----------------------------------------------
+    // COOLANT PROJECTILES
+    // ----------------------------------------------
+
+    for (
+        let i = projectiles.length - 1;
+        i >= 0;
+        i--
+    ) {
+
+        const projectile = projectiles[i];
+
+
+        const angle = Math.atan2(
+            star.y - projectile.y,
+            star.x - projectile.x
+        );
+
+
+        projectile.x +=
+            Math.cos(angle) *
+            projectile.speed *
+            deltaTime;
+
+
+        projectile.y +=
+            Math.sin(angle) *
+            projectile.speed *
+            deltaTime;
+
+
+        const distanceToCore = Math.hypot(
+            star.x - projectile.x,
+            star.y - projectile.y
+        );
+
+
+        if (
+            distanceToCore <
+            star.currentRadius
+        ) {
+
+            star.currentRadius = Math.max(
+                star.baseRadius,
+                star.currentRadius - 15
+            );
+
+
             projectiles.splice(i, 1);
         }
     }
 
-    // 6. Collision Detection: Player vs Star (Lose Condition)
-    let distPlayerStar = Math.hypot(star.x - player.x, star.y - player.y);
-    if (distPlayerStar < star.currentRadius + player.radius) {
-        gameState = 'LOSE';
-        statusMsg.innerText = "CRITICAL FAILURE. Consumed by the Bloom.";
-        statusMsg.style.color = colors.coreRed;
+
+    // ----------------------------------------------
+    // PLAYER VS BLOOM
+    // ----------------------------------------------
+
+    const distanceToPlayer = Math.hypot(
+        star.x - player.x,
+        star.y - player.y
+    );
+
+
+    if (
+        distanceToPlayer <=
+        star.currentRadius + player.radius
+    ) {
+
+        loseGame();
+
+        return;
     }
 }
+
+
+// --------------------------------------------------
+// DIFFICULTY CURVE
+// --------------------------------------------------
+
+function getGrowthRate() {
+
+    if (timeSurvived < 20) {
+
+        return 11;
+
+    }
+
+    if (timeSurvived < 40) {
+
+        return 14;
+
+    }
+
+    if (timeSurvived < 55) {
+
+        return 17;
+
+    }
+
+    return 20;
+}
+
+
+// --------------------------------------------------
+// RANDOM NODE SPAWN DELAY
+// --------------------------------------------------
+
+function randomSpawnDelay() {
+
+    return 1.0 + Math.random() * 0.7;
+}
+
+
+// --------------------------------------------------
+// SPAWN COOLANT NODE
+// --------------------------------------------------
 
 function spawnNode() {
-    let angle = Math.random() * Math.PI * 2;
-    let distance = star.currentRadius + 50 + Math.random() * (400 - star.currentRadius - 50);
-    
-    let nx = star.x + Math.cos(angle) * distance;
-    let ny = star.y + Math.sin(angle) * distance;
-    
-    if (nx > 20 && nx < 780 && ny > 20 && ny < 780) {
-        nodes.push({ x: nx, y: ny, radius: 8 });
+
+    const nodeRadius = 8;
+
+    const margin = 30;
+
+    const safeDistance =
+        star.currentRadius + 55;
+
+
+    // Try multiple random positions
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+
+        const x =
+            margin +
+            Math.random() *
+            (canvas.width - margin * 2);
+
+
+        const y =
+            margin +
+            Math.random() *
+            (canvas.height - margin * 2);
+
+
+        const distanceFromCore =
+            Math.hypot(
+                star.x - x,
+                star.y - y
+            );
+
+
+        if (
+            distanceFromCore >
+            safeDistance
+        ) {
+
+            nodes.push({
+
+                x: x,
+
+                y: y,
+
+                radius: nodeRadius,
+
+                pulse: Math.random() * Math.PI * 2
+            });
+
+            return;
+        }
     }
 }
 
-// Web Rendering Pipeline
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw Central Star (Bloom effect)
-    ctx.beginPath();
-    ctx.arc(star.x, star.y, star.currentRadius, 0, Math.PI * 2);
-    ctx.fillStyle = colors.coreRed;
-    ctx.shadowBlur = 40;
-    ctx.shadowColor = colors.coreRed;
-    ctx.fill();
-    ctx.shadowBlur = 0;
+// --------------------------------------------------
+// WIN
+// --------------------------------------------------
 
-    // Draw Nodes
-    ctx.fillStyle = colors.node;
-    nodes.forEach(n => {
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = colors.node;
-        ctx.fill();
-    });
-    ctx.shadowBlur = 0;
+function winGame() {
 
-    // Draw Projectiles
-    ctx.fillStyle = colors.warning;
-    projectiles.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-    });
+    gameState = "WIN";
 
-    // Draw Player
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-    ctx.fillStyle = "white"; 
-    ctx.fill();
+
+    statusMsg.innerText =
+        "CONTAINMENT SUCCESSFUL";
+
+    statusMsg.style.color =
+        colors.node;
+
+
+    finalTime.innerText =
+        "60.00";
+
+
+    endTitle.innerText =
+        "CONTAINMENT SUCCESSFUL";
+
+
+    endTitle.style.color =
+        colors.node;
+
+
+    endMessage.innerText =
+        "You survived the full Bloom cycle.";
+
+
+    endScreen.classList.remove("hidden");
 }
 
-// Boot
-requestAnimationFrame(gameLoop);
+
+// --------------------------------------------------
+// LOSE
+// --------------------------------------------------
+
+function loseGame() {
+
+    gameState = "LOSE";
+
+
+    statusMsg.innerText =
+        "CRITICAL FAILURE";
+
+    statusMsg.style.color =
+        colors.coreRed;
+
+
+    finalTime.innerText =
+        timeSurvived.toFixed(2);
+
+
+    endTitle.innerText =
+        "CONTAINMENT FAILURE";
+
+
+    endTitle.style.color =
+        colors.coreRed;
+
+
+    endMessage.innerText =
+        "The Bloom reached your ship.";
+
+
+    endScreen.classList.remove("hidden");
+}
+
+
+// --------------------------------------------------
+// DRAW
+// --------------------------------------------------
+
+function draw() {
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    // ----------------------------------------------
+    // BACKGROUND
+    // ----------------------------------------------
+
+    ctx.fillStyle = colors.void;
+
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    // ----------------------------------------------
+    // CENTRAL CORE BLOOM
+    // ----------------------------------------------
+
+    ctx.save();
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        star.x,
+        star.y,
+        star.currentRadius,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.fillStyle = colors.coreRed;
+
+
+    ctx.shadowBlur = 40;
+
+    ctx.shadowColor = colors.coreRed;
+
+
+    ctx.fill();
+
+
+    ctx.restore();
+
+
+    // ----------------------------------------------
+    // EXACT COLLISION BORDER
+    // ----------------------------------------------
+
+    ctx.beginPath();
+
+    ctx.arc(
+        star.x,
+        star.y,
+        star.currentRadius,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.strokeStyle = colors.warning;
+
+    ctx.lineWidth = 2;
+
+    ctx.stroke();
+
+
+    // ----------------------------------------------
+    // COOLANT NODES
+    // ----------------------------------------------
+
+    for (let i = 0; i < nodes.length; i++) {
+
+        const node = nodes[i];
+
+
+        node.pulse += 0.05;
+
+
+        const pulseSize =
+            Math.sin(node.pulse) * 1.5;
+
+
+        ctx.save();
+
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+            node.x,
+            node.y,
+            node.radius + pulseSize,
+            0,
+            Math.PI * 2
+        );
+
+
+        ctx.fillStyle = colors.node;
+
+
+        ctx.shadowBlur = 12;
+
+        ctx.shadowColor = colors.node;
+
+
+        ctx.fill();
+
+
+        ctx.restore();
+    }
+
+
+    // ----------------------------------------------
+    // COOLANT PROJECTILES
+    // ----------------------------------------------
+
+    for (
+        let i = 0;
+        i < projectiles.length;
+        i++
+    ) {
+
+        const projectile =
+            projectiles[i];
+
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+            projectile.x,
+            projectile.y,
+            projectile.radius,
+            0,
+            Math.PI * 2
+        );
+
+
+        ctx.fillStyle =
+            colors.warning;
+
+
+        ctx.fill();
+    }
+
+
+    // ----------------------------------------------
+    // PLAYER
+    // ----------------------------------------------
+
+    ctx.save();
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        player.x,
+        player.y,
+        player.radius,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.fillStyle = "white";
+
+
+    ctx.shadowBlur = 8;
+
+    ctx.shadowColor = "white";
+
+
+    ctx.fill();
+
+
+    ctx.restore();
+}
+
+
+// --------------------------------------------------
+// INITIAL SCREEN
+// --------------------------------------------------
+
+draw();
