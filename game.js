@@ -22,8 +22,14 @@ const finalTime = document.getElementById("finalTime");
 
 const GAME_LENGTH = 60;
 
-const CORE_GROWTH_RATE = 20;
+// Slightly slower than previous version
+const CORE_GROWTH_RATE = 18.5;
+
+// How much each coolant hit shrinks the Bloom
 const COOLANT_SHRINK = 10;
+
+// Always keep this many coolant nodes available
+const ACTIVE_COOLANT_COUNT = 4;
 
 const colors = {
     void: "#070913",
@@ -44,9 +50,6 @@ let timeSurvived = 0;
 let gameState = "START";
 
 let animationID = null;
-
-let nodeSpawnTimer = 0;
-let nextNodeSpawn = 1;
 
 
 // --------------------------------------------------
@@ -114,7 +117,7 @@ replayButton.addEventListener("click", function () {
 
 
 // --------------------------------------------------
-// START / RESET
+// START / RESET GAME
 // --------------------------------------------------
 
 function startGame() {
@@ -127,9 +130,6 @@ function startGame() {
     lastTime = 0;
 
     gameState = "PLAYING";
-
-    nodeSpawnTimer = 0;
-    nextNodeSpawn = randomSpawnDelay();
 
     player.x = 400;
     player.y = 700;
@@ -151,11 +151,10 @@ function startGame() {
     endScreen.classList.add("hidden");
 
 
-    // Start with four coolant nodes
-    spawnNode();
-    spawnNode();
-    spawnNode();
-    spawnNode();
+    // Always begin with four coolant nodes
+    for (let i = 0; i < ACTIVE_COOLANT_COUNT; i++) {
+        spawnNode();
+    }
 
 
     animationID = requestAnimationFrame(gameLoop);
@@ -174,7 +173,7 @@ function gameLoop(timestamp) {
 
     let deltaTime = (timestamp - lastTime) / 1000;
 
-    // Prevent giant jumps from lag or switching tabs
+    // Prevent huge jumps from browser lag
     deltaTime = Math.min(deltaTime, 0.05);
 
     lastTime = timestamp;
@@ -229,27 +228,11 @@ function update(deltaTime) {
 
 
     // --------------------------------------------------
-    // CORE GROWTH
+    // BLOOM GROWTH
     // --------------------------------------------------
 
     star.currentRadius +=
         CORE_GROWTH_RATE * deltaTime;
-
-
-    // --------------------------------------------------
-    // COOLANT SPAWNING
-    // --------------------------------------------------
-
-    nodeSpawnTimer += deltaTime;
-
-    if (nodeSpawnTimer >= nextNodeSpawn) {
-
-        spawnNode();
-
-        nodeSpawnTimer = 0;
-
-        nextNodeSpawn = randomSpawnDelay();
-    }
 
 
     // --------------------------------------------------
@@ -270,6 +253,7 @@ function update(deltaTime) {
             player.radius + node.radius
         ) {
 
+            // Fire collected coolant toward Core
             projectiles.push({
                 x: player.x,
                 y: player.y,
@@ -277,7 +261,13 @@ function update(deltaTime) {
                 speed: 430
             });
 
+
+            // Remove collected coolant
             nodes.splice(i, 1);
+
+
+            // Immediately replace it
+            spawnNode();
         }
     }
 
@@ -305,10 +295,12 @@ function update(deltaTime) {
             projectile.speed *
             deltaTime;
 
+
         const distanceToCore = Math.hypot(
             star.x - projectile.x,
             star.y - projectile.y
         );
+
 
         if (
             distanceToCore <
@@ -334,6 +326,7 @@ function update(deltaTime) {
         star.y - player.y
     );
 
+
     if (
         distanceToPlayer <=
         star.currentRadius + player.radius
@@ -343,18 +336,6 @@ function update(deltaTime) {
 
         return;
     }
-}
-
-
-// --------------------------------------------------
-// RANDOM COOLANT SPAWN DELAY
-// --------------------------------------------------
-
-function randomSpawnDelay() {
-
-    // Coolant appears every 0.8 - 1.5 seconds
-
-    return 0.8 + Math.random() * 0.7;
 }
 
 
@@ -371,7 +352,7 @@ function spawnNode() {
         star.currentRadius + 55;
 
 
-    for (let attempt = 0; attempt < 40; attempt++) {
+    for (let attempt = 0; attempt < 50; attempt++) {
 
         const x =
             margin +
@@ -383,25 +364,49 @@ function spawnNode() {
             Math.random() *
             (canvas.height - margin * 2);
 
+
         const distanceFromCore =
             Math.hypot(
                 star.x - x,
                 star.y - y
             );
 
-        if (
-            distanceFromCore >
-            safeDistance
-        ) {
 
-            nodes.push({
-                x: x,
-                y: y,
-                radius: nodeRadius,
-                pulse: Math.random() * Math.PI * 2
-            });
+        if (distanceFromCore > safeDistance) {
 
-            return;
+            // Make sure coolant nodes are not directly
+            // on top of another coolant node
+
+            let tooClose = false;
+
+            for (let i = 0; i < nodes.length; i++) {
+
+                const otherNode = nodes[i];
+
+                const nodeDistance =
+                    Math.hypot(
+                        otherNode.x - x,
+                        otherNode.y - y
+                    );
+
+                if (nodeDistance < 35) {
+                    tooClose = true;
+                    break;
+                }
+            }
+
+
+            if (!tooClose) {
+
+                nodes.push({
+                    x: x,
+                    y: y,
+                    radius: nodeRadius,
+                    pulse: Math.random() * Math.PI * 2
+                });
+
+                return;
+            }
         }
     }
 }
@@ -481,7 +486,9 @@ function draw() {
     );
 
 
+    // --------------------------------------------------
     // BACKGROUND
+    // --------------------------------------------------
 
     ctx.fillStyle = colors.void;
 
@@ -594,8 +601,7 @@ function draw() {
             Math.PI * 2
         );
 
-        ctx.fillStyle =
-            colors.warning;
+        ctx.fillStyle = colors.warning;
 
         ctx.fill();
     }
