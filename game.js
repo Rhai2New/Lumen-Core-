@@ -23,8 +23,8 @@ const finalTime = document.getElementById("finalTime");
 const GAME_LENGTH = 60;
 
 // Harder base difficulty
-const CORE_GROWTH_RATE = 24;
-const COOLANT_SHRINK = 9;
+const CORE_GROWTH_RATE = 20;
+const COOLANT_SHRINK = 10;
 
 const colors = {
     void: "#070913",
@@ -361,7 +361,7 @@ function randomSpawnDelay() {
 
     // Coolant now appears every 1.8 - 3.0 seconds
 
-    return 1.8 + Math.random() * 1.2;
+    return 1.3 + Math.random() * 1.2;
 }
 
 
