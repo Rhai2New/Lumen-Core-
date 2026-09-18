@@ -1,19 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lumen Core</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-    <div id="ui">
-        <h2>LUMEN CORE</h2>
-        <p>Time Surviving: <span id="timerDisplay">0.00</span>s / 60.00s</p>
-        <p id="statusMsg">Move mouse to control the ship. Collect Coolant Nodes to shrink the Core.</p>
+
+    <div id="gameContainer">
+
+        <div id="ui">
+            <h2>LUMEN CORE</h2>
+
+            <div id="timeRow">
+                <p>
+                    Survived:
+                    <span id="timerDisplay">0.00</span>s
+                </p>
+
+                <p>
+                    Remaining:
+                    <span id="remainingDisplay">60.00</span>s
+                </p>
+            </div>
+
+            <p id="statusMsg">
+                Collect coolant nodes and avoid the expanding Core.
+            </p>
+        </div>
+
+        <div id="canvasContainer">
+
+            <canvas
+                id="gameCanvas"
+                width="800"
+                height="800">
+            </canvas>
+
+            <!-- Start Screen -->
+            <div id="startScreen" class="overlay">
+                <h1>LUMEN CORE</h1>
+
+                <p>
+                    The containment Core is blooming out of control.
+                </p>
+
+                <p>
+                    Move your mouse to control your ship.
+                </p>
+
+                <p>
+                    Collect cyan coolant nodes to shrink the Core.
+                </p>
+
+                <p>
+                    Do not touch the red Bloom.
+                </p>
+
+                <p>
+                    Survive for 60 seconds.
+                </p>
+
+                <button id="startButton">
+                    BEGIN CONTAINMENT
+                </button>
+            </div>
+
+            <!-- Ending Screen -->
+            <div id="endScreen" class="overlay hidden">
+                <h1 id="endTitle">CONTAINMENT FAILURE</h1>
+
+                <p id="endMessage"></p>
+
+                <p>
+                    Survival Time:
+                    <span id="finalTime">0.00</span>s
+                </p>
+
+                <button id="replayButton">
+                    REPLAY
+                </button>
+            </div>
+
+        </div>
+
     </div>
-    <canvas id="gameCanvas" width="800" height="800"></canvas>
-    
+
     <script src="game.js"></script>
+
 </body>
+
 </html>
